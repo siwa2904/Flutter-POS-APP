@@ -1,0 +1,74 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+// import 'package:get_storage/get_storage.dart';
+// import 'package:posflutter/controllers/networkmanager_controller.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:mispos/utils/controller_binding.dart';
+import 'package:presentation_displays/display.dart';
+import 'package:presentation_displays/displays_manager.dart';
+import 'routes/routes.dart';
+// import 'utils/controller_binding.dart';
+
+class App extends StatefulWidget {
+  const App({Key? key}) : super(key: key);
+
+  @override
+  _AppState createState() => _AppState();
+
+
+}
+
+class _AppState extends State<App> {
+  DisplayManager displayManager = DisplayManager();
+  List<Display?> displays = [];
+
+  handleMonitor() async {
+    final values = await displayManager.getDisplays();
+    displays.clear();
+    displays.addAll(values!);
+    int? displayId = 1;
+    print(displays);
+    for (final display in displays) {
+      if (display?.displayId!=0){
+        displayId=display?.displayId;
+      }
+    }
+    print("displayId");
+    print(displayId);
+    if (displayId != null) {
+      for (final display in displays) {
+
+        if (display?.displayId == displayId) {
+
+          await displayManager.showSecondaryDisplay(
+              displayId: displayId, routerName: "cm_display");
+        }
+      }
+    }
+    // await displayManager.transferDataToPresentation("gggg");
+  }
+  // storgeHandle() async{
+  //   await GetStorage.init();
+  // }
+
+  @override
+  Widget build(BuildContext context) {
+    handleMonitor();
+    // storgeHandle();
+    return GetMaterialApp(
+        debugShowCheckedModeBanner: false,
+        localizationsDelegates: [
+          GlobalMaterialLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+        ],
+
+        supportedLocales: [
+          const Locale('th', 'TH'),
+          const Locale('en', 'US'),
+        ],
+        initialBinding: ControllerBinding(),
+        initialRoute: '/',
+        getPages: Routes.routes);
+  }
+}
