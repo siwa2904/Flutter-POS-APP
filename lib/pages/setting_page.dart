@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:mispos/check_update.dart';
 import 'package:mispos/controllers/setting_controller.dart';
 
 class SettingPage extends StatelessWidget {
@@ -19,9 +20,65 @@ class SettingPage extends StatelessWidget {
   double getBiglDiameter(BuildContext context) =>
       MediaQuery.of(context).size.width * 7 / 8;
   _setConfig(BuildContext context) async {
-    await settingCtrl.setUpSetting();
+    // แสดง loading dialog ขณะเช็คการเชื่อมต่อ
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: Colors.red),
+            const SizedBox(height: 20),
+            Text(
+              'กำลังเช็คการเชื่อมต่อ Server...',
+              style: GoogleFonts.kanit(fontSize: 18),
+            ),
+          ],
+        ),
+      ),
+    );
 
-    Get.offAllNamed("/");
+    final isConnected = await settingCtrl.checkServerConnection();
+
+    // ปิด loading dialog
+    Navigator.of(context, rootNavigator: true).pop();
+
+    if (isConnected) {
+      // เชื่อมต่อได้ → บันทึก setting แล้วไปหน้าต่อไป
+      await settingCtrl.setUpSetting();
+      Get.offAllNamed("/");
+    } else {
+      // เชื่อมต่อไม่ได้ → แสดง dialog แจ้งเตือน ไม่ให้ไป login
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red, size: 28),
+              const SizedBox(width: 8),
+              Text('เชื่อมต่อ Server ไม่ได้',
+                  style: GoogleFonts.kanit(
+                      fontSize: 20, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Text(
+            settingCtrl.connectionMessage.value,
+            style: GoogleFonts.kanit(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text('ตกลง',
+                  style: GoogleFonts.kanit(fontSize: 16, color: Colors.red)),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override
@@ -82,7 +139,52 @@ class SettingPage extends StatelessWidget {
                             _emailPasswordWidget(),
                             SizedBox(height: 20),
                             _submitButton(context),
+                            SizedBox(height: height * .0085),
+                            _update(context),
                             SizedBox(height: height * .055),
+                            // ElevatedButton.icon(
+                            //   onPressed: () {
+                            //     CheckUpdate.check(context);
+                            //   },
+                            //
+                            //   icon: const Icon(
+                            //     Icons.system_update_alt_rounded,
+                            //     color: Colors.white,
+                            //     size: 34,
+                            //   ),
+                            //
+                            //   label: Text(
+                            //     "เช็คอัปเดต",
+                            //     style: GoogleFonts.maitree(
+                            //       fontSize: 22,
+                            //       fontWeight: FontWeight.bold,
+                            //       color: Colors.white,
+                            //     ),
+                            //   ),
+                            //
+                            //   style: ElevatedButton.styleFrom(
+                            //     elevation: 8,
+                            //     padding: const EdgeInsets.symmetric(
+                            //       horizontal: 28,
+                            //       vertical: 18,
+                            //     ),
+                            //
+                            //     backgroundColor: Colors.red,
+                            //     foregroundColor: Colors.white,
+                            //     surfaceTintColor: Colors.red,
+                            //
+                            //     shadowColor: Colors.red.withOpacity(0.4),
+                            //
+                            //     shape: RoundedRectangleBorder(
+                            //       borderRadius: BorderRadius.circular(18),
+                            //     ),
+                            //
+                            //     textStyle: GoogleFonts.maitree(
+                            //       fontSize: 20,
+                            //       fontWeight: FontWeight.w600,
+                            //     ),
+                            //   ),
+                            // ),
                           ]),
                         )
                       ]),
@@ -128,7 +230,7 @@ class SettingPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    'IP Server::'+settingCtrl.ipServer.value,
+                    'IP Server::' + settingCtrl.ipServer.value,
                     style: GoogleFonts.kanit(
                       fontSize: 20,
                       fontWeight: FontWeight.w400,
@@ -139,7 +241,6 @@ class SettingPage extends StatelessWidget {
                   ),
                   Stack(children: <Widget>[
                     TextFormField(
-
                       keyboardType: TextInputType.text,
 
                       decoration: InputDecoration(
@@ -152,7 +253,6 @@ class SettingPage extends StatelessWidget {
                             color: Colors.red),
                       ),
                       onChanged: (value) {
-
                         settingCtrl.ipServer.value = value;
                       },
 
@@ -174,7 +274,7 @@ class SettingPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
                   Text(
-                    "รหัสเครื่อง:: "+settingCtrl.posID.value,
+                    "รหัสเครื่อง:: " + settingCtrl.posID.value,
                     style: GoogleFonts.kanit(
                       fontSize: 20,
                       fontWeight: FontWeight.w400,
@@ -212,14 +312,14 @@ class SettingPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                   Checkbox(value: settingCtrl.saleOffline.value,
-                      activeColor: Colors.green,
-                      onChanged:(newValue){
-
-    settingCtrl.saleOffline.value = newValue==true;
-    },),
-                        Text('ขาย Offline')
-                      ,
+                  Checkbox(
+                    value: settingCtrl.saleOffline.value,
+                    activeColor: Colors.green,
+                    onChanged: (newValue) {
+                      settingCtrl.saleOffline.value = newValue == true;
+                    },
+                  ),
+                  Text('ขาย Offline'),
                 ],
               ),
             )
@@ -227,27 +327,73 @@ class SettingPage extends StatelessWidget {
         ));
   }
 
+
+
   Widget _submitButton(context) {
     return ElevatedButton.icon(
       onPressed: () {
-        // Get.snackbar("--", settingCtrl.ipServer.value!+"--");
         _setConfig(context);
-        // authen();
       },
-      icon: Icon(
-        FontAwesomeIcons.save,
+
+      icon: const Icon(
+        Icons.save_rounded,
+        size: 28,
         color: Colors.white,
-        size: 50,
       ),
-      label: Text("บันทึก"),
+
+      label: Text(
+        "บันทึก",
+        style: GoogleFonts.maitree(
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+
       style: ElevatedButton.styleFrom(
-          // fixedSize: Size(200,60),
-          padding: EdgeInsets.all(5),
-          backgroundColor: Colors.red,
-          foregroundColor: Colors.white,
-          surfaceTintColor: Colors.red,
-          textStyle:
-              GoogleFonts.maitree(fontSize: 18, fontWeight: FontWeight.w500)),
+        elevation: 5,
+        backgroundColor: Colors.green,
+        foregroundColor: Colors.white,
+
+        minimumSize: const Size(double.infinity, 60),
+
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+    );
+  }
+
+  Widget _update(context) {
+    return ElevatedButton.icon(
+      onPressed: () {
+        CheckUpdate.check(context, isManual: true);
+      },
+
+      icon: const Icon(
+        Icons.system_update_alt_rounded,
+        size: 28,
+        color: Colors.white,
+      ),
+
+      label: Text(
+        "เช็คอัพเดท",
+        style: GoogleFonts.maitree(
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+
+      style: ElevatedButton.styleFrom(
+        elevation: 5,
+        backgroundColor: const Color(0xFFFF4B4B),
+        foregroundColor: Colors.white,
+
+        minimumSize: const Size(double.infinity, 60),
+
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
     );
   }
 }

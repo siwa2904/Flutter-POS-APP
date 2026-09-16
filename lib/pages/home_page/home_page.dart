@@ -7,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hexcolor/hexcolor.dart';
 import 'package:intl/intl.dart';
+import 'package:mispos/check_update.dart';
 import 'package:mispos/controllers/billoffline_controller.dart';
 import 'package:mispos/pages/billoffline_page/billoffline_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -56,7 +57,9 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // bof.printLog();
-
+    Future.delayed(Duration.zero, () {
+      CheckUpdate.check(context);
+    });
     hmctrl.getReport();
 
     return SafeArea(

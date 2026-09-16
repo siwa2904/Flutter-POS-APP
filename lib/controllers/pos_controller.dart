@@ -55,52 +55,67 @@ class POSController extends GetxController {
   }
 
   getProducts() async {
-    getFavorite();
     try {
+      await getFavorite();
+
       var prodFromApi = await POSService().getProductForSale();
-      products.value = prodFromApi;
 
-      productsTemp.value = prodFromApi;
-
-      for (var i = 0; i < products.length; i++) {
-        int ind = productsFavo
-            .indexWhere((elm) => elm.produncID == products[i].productId);
-
-        if (ind > -1) {
-          products[i].favorite = 1;
-        } else {
-          products[i].favorite = 0;
-        }
+      if (prodFromApi == null) {
+        throw Exception("Product API return null");
       }
-      products.sort((a, b) {
-        var adate = a.favorite; //before -> var adate = a.expiry;
-        var bdate = b.favorite; //var bdate = b.expiry;
-        return bdate!.compareTo(adate!);
-      });
-    } catch (err) {
 
+      // ทำ Set ไว้ lookup เร็ว
+      final favoriteIds =
+      productsFavo.map((e) => e.produncID).toSet();
+
+      for (var product in prodFromApi) {
+        product.favorite =
+        favoriteIds.contains(product.productId) ? 1 : 0;
+      }
+
+      // sort favorite ขึ้นก่อน
+      prodFromApi.sort((a, b) {
+        return (b.favorite ?? 0).compareTo(a.favorite ?? 0);
+      });
+
+      products.value = prodFromApi;
+      productsTemp.value = prodFromApi;
+    } catch (err) {
+      print("getProducts error: $err");
     }
   }
 
   getFavorite() {
     getApplicationDocumentsDirectory().then((Directory directory) {
       dir = directory;
-      File filePath =  File("${dir.path}/favorite2.json");
+      File filePath = File("${dir.path}/favorite2.json");
       bool fileExists = filePath.existsSync();
       print(filePath);
-print(fileExists);
+      print(fileExists);
+
       if (fileExists) {
-        // createFile(json
-        //     .encode(List<dynamic>.from(productsFavo.map((x) => x.toJson()))));
         String jsonData = filePath.readAsStringSync();
-        var parsed = jsonDecode(jsonData);
-        jsonResult = parsed
-            .map<FavoritModel>((json) => FavoritModel.fromJsonFile(json))
-            .toList();
-        productsFavo.value = List<FavoritModel>.from(
-            json.decode(jsonData).map((x) => FavoritModel.fromJson(x)));
+
+        // ✅ ตรวจสอบก่อนว่าไม่ว่าง
+        if (jsonData.trim().isEmpty) {
+          productsFavo.value = [];
+          return;
+        }
+
+        try {
+          var parsed = jsonDecode(jsonData);
+          jsonResult = parsed
+              .map<FavoritModel>((json) => FavoritModel.fromJsonFile(json))
+              .toList();
+          productsFavo.value = List<FavoritModel>.from(
+              parsed.map((x) => FavoritModel.fromJson(x)));
+        } catch (e) {
+          print('Error parsing favorite: $e');
+          productsFavo.value = [];
+        }
       } else {
-        createFile("");
+        // ✅ สร้างไฟล์ด้วย empty array แทน string ว่าง
+        createFile("[]");
       }
     });
     print(productsFavo.length);

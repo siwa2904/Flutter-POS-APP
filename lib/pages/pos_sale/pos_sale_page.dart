@@ -42,13 +42,21 @@ class PosSalePage extends StatelessWidget {
   ScrollController? _controller;
   var scrollController = ScrollController();
   double appbarHeight = 0;
-  late bool visible;
+  bool visible = true;
   int itmPerCol = 5;
   List<Widget> productWidget = [];
   List<Widget> menuPayWidget = [];
   List<ProductModel> products = [];
 
   bool isScanCard = false;
+
+  // === Debounce card scan: เก็บเลขบัตรที่เข้ามาทั้งหมดในช่วง 500ms ===
+  // แล้วเลือกเอาตัวที่ยาวที่สุด (ครบที่สุด) เพื่อป้องกัน:
+  // 1) อ่านเบิ้ล (เรียก payCardToBill หลายครั้ง)
+  // 2) เลขบัตรไม่ครบ (keyboard-wedge ส่งมาเป็นหลายก้อน)
+  Timer? _cardDebounceTimer;
+  List<String> _cardScanBuffer = [];
+  bool _isCardProcessing = false;
 
   List<Widget> catWidget = [];
   List<Cat> catAll = [];
@@ -94,23 +102,18 @@ class PosSalePage extends StatelessWidget {
             bufferDuration: const Duration(milliseconds: 200),
             useKeyDownEvent: true,
             onBarcodeScanned: (barcode) {
-              print("isScanCard");
-              print(isScanCard);
-              print("=======");
-              print("<<<"+barcode+">>>");
-              print("#######");
-              if (!visible || barcode=="") return;
+              print("isScanCard: $isScanCard");
+              print("<<<$barcode>>>");
+              if (!visible || barcode == "") return;
 
               if (isScanCard) {
-                print(barcode);
-                cdc.order.value.cardNumber = barcode;
-                cdc.payCardToBill();
+                // กำลังอยู่ในโหมดสแกนบัตร → ใช้ debounce
+                _handleCardScan(barcode);
               } else {
                 print(barcode);
                 ProductModel findPro = findProduct(barcode);
                 if (findPro.productId != null || findPro.productId != "") {
                   cdc.addItem(findPro);
-                  //   // orderCtrl.update();
                 }
               }
             },
@@ -380,6 +383,8 @@ class PosSalePage extends StatelessWidget {
           child: InkWell(
             onTap: () async {
               cdc.orderSuccess.value = cdc.order.value;
+              print("sssssssssssssssssssssssssssdsdsdsdd");
+              print(cdc.orderSuccess.value.toJson());
               var dd = await paymentCardDialod(context);
             },
             child: Column(
@@ -848,7 +853,8 @@ class PosSalePage extends StatelessWidget {
                                                                     keyboardType:
                                                                         TextInputType
                                                                             .number,
-                                                                    inputFormatters: <TextInputFormatter>[
+                                                                    inputFormatters: <
+                                                                        TextInputFormatter>[
                                                                       FilteringTextInputFormatter
                                                                           .digitsOnly
                                                                     ],
@@ -2027,6 +2033,7 @@ class PosSalePage extends StatelessWidget {
 
   paymentCardDialod(contact) {
     isScanCard = true;
+    _resetCardScan(); // รีเซ็ตสถานะ card scan ก่อนเริ่มใหม่
     fieldTextSearch2.text = "";
     cdc.orderSuccess.value = BillModel();
     double rowHeight = 80;
@@ -2035,8 +2042,6 @@ class PosSalePage extends StatelessWidget {
     cdc.isPayProcess.value = false;
     cdc.payCash.value = '0.00';
     cdc.order.value.receiveCash = 0;
-    // posCtrl.searchCustomer.value = posCtrl.customers
-    //     .firstWhere((element) => element.customerNo == "CM000001");
     hidKeyboard();
     _scanCardNFC();
     Get.defaultDialog(
@@ -2109,203 +2114,33 @@ class PosSalePage extends StatelessWidget {
                   const SizedBox(
                     height: 20,
                   ),
-                  (cdc.isPayProcess.value)
-                      ? Container(
-                          child: (cdc.isPaySuccess.value)
-                              ? (cdc.errorCard.toString() == "")
-                                  ? Container(
-                                      child: Column(
-                                        children: [
-                                          Text(
-                                            "ทำรายการสำเร็จ",
-                                            style: GoogleFonts.maitree(
-                                                color: Colors.green,
-                                                fontSize: 25),
-                                            textAlign: TextAlign.center,
-                                          ),
-                                          Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              children: [
-                                                Expanded(
-                                                  child: InkWell(
-                                                      splashColor: Colors.red,
-                                                      onTap: () async {
-                                                        await printSlip();
-                                                        // await printSlip();
-                                                        // await onPrintTest();
-                                                        await cdc.clear();
-                                                        Get.back();
-                                                        // cdc.keyReceiveCash('2');
-                                                      },
-                                                      child: Container(
-                                                          height: 100,
-                                                          alignment:
-                                                              Alignment.center,
-                                                          decoration: BoxDecoration(
-                                                              color:
-                                                                  Colors.blue,
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          30)),
-                                                          margin:
-                                                              const EdgeInsets
-                                                                  .all(1),
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .all(5),
-                                                          // color: Colors.blue,
-                                                          child: Text(
-                                                            "พิมพ์สลิป",
-                                                            style: GoogleFonts
-                                                                .maitree(
-                                                                    fontSize:
-                                                                        22,
-                                                                    color: Colors
-                                                                        .white),
-                                                            textAlign: TextAlign
-                                                                .center,
-                                                          )) // <-- Icon
-                                                      // <-- Text
-                                                      ),
-                                                ),
-                                                Expanded(
-                                                  child: InkWell(
-                                                      splashColor: Colors.red,
-                                                      onTap: () async {
-                                                        await printSlip();
-                                                        cashDraw();
-                                                        cdc.clear();
-                                                        Get.back();
-                                                        // cdc.keyReceiveCash('2');
-                                                      },
-                                                      child: Container(
-                                                          height: 100,
-                                                          alignment:
-                                                              Alignment.center,
-                                                          decoration: BoxDecoration(
-                                                              color:
-                                                                  Colors.blue,
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          30)),
-                                                          margin:
-                                                              const EdgeInsets
-                                                                  .all(1),
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .all(5),
-                                                          // color: Colors.blue,
-                                                          child: Text(
-                                                            "พิมพ์สลิป/เปิดลิ้นชัก",
-                                                            style: GoogleFonts
-                                                                .maitree(
-                                                                    fontSize:
-                                                                        20,
-                                                                    color: Colors
-                                                                        .white),
-                                                            textAlign: TextAlign
-                                                                .center,
-                                                          )) // <-- Icon
-                                                      // <-- Text
-                                                      ),
-                                                ),
-                                                Expanded(
-                                                  child: InkWell(
-                                                      splashColor: Colors.red,
-                                                      onTap: () {
-                                                        // cdc.keyReceiveCash('2');
-                                                        cashDraw();
-                                                        cdc.clear();
-                                                        Get.back();
-                                                      },
-                                                      child: Container(
-                                                          height: 100,
-                                                          alignment:
-                                                              Alignment.center,
-                                                          decoration: BoxDecoration(
-                                                              color:
-                                                                  Colors.blue,
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          30)),
-                                                          margin:
-                                                              const EdgeInsets
-                                                                  .all(1),
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .all(5),
-                                                          // color: Colors.blue,
-                                                          child: Text(
-                                                            "เปิดลิ้นชัก",
-                                                            style: GoogleFonts
-                                                                .maitree(
-                                                                    fontSize:
-                                                                        22,
-                                                                    color: Colors
-                                                                        .white),
-                                                            textAlign: TextAlign
-                                                                .center,
-                                                          )) // <-- Icon
-                                                      // <-- Text
-                                                      ),
-                                                ),
-                                                Expanded(
-                                                  child: InkWell(
-                                                      splashColor: Colors.red,
-                                                      onTap: () {
-                                                        cdc.clear();
-                                                        Get.back();
-                                                        // cdc.keyReceiveCash('2');
-                                                      },
-                                                      child: Container(
-                                                          alignment:
-                                                              Alignment.center,
-                                                          height: 100,
-                                                          decoration: BoxDecoration(
-                                                              color: Colors.red,
-                                                              borderRadius:
-                                                                  BorderRadius
-                                                                      .circular(
-                                                                          30)),
-                                                          margin:
-                                                              const EdgeInsets
-                                                                  .all(1),
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .all(5),
-                                                          // color: Colors.red,
-                                                          child: Text(
-                                                            "ปิด",
-                                                            style: GoogleFonts
-                                                                .maitree(
-                                                                    fontSize:
-                                                                        22,
-                                                                    color: Colors
-                                                                        .white),
-                                                            textAlign: TextAlign
-                                                                .center,
-                                                          )) // <-- Icon
-                                                      // <-- Text
-                                                      ),
-                                                )
-                                              ])
-                                        ],
-                                      ),
-                                    )
-                                  : Text(
-                                      cdc.errorCard.toString(),
-                                      style: GoogleFonts.maitree(
-                                          color: Colors.red, fontSize: 30),
-                                    )
-                              : const CircularProgressIndicator(),
-                        )
-                      : Container()
+                  Obx(() {
+                    if (!cdc.isPayProcess.value) {
+                      print("ssssssssssssssfffffffff");
+                      print(cdc.isPayProcess.value);
+                      return const SizedBox.shrink();
+                    }
 
+                    if (!cdc.isPaySuccess.value) {
+                      print("sdddddddddddddddddd");
+                      print(cdc.isPaySuccess.value);
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if ((cdc.errorCard ?? '').toString().isNotEmpty) {
+                      return Text(
+                        cdc.errorCard.toString(),
+                        style: GoogleFonts.maitree(
+                          color: Colors.red,
+                          fontSize: 30,
+                        ),
+                        textAlign: TextAlign.center,
+                      );
+                    }
+
+                    // กรณีทำรายการสำเร็จ + ไม่มี error
+                    return _buildSuccessContent();
+                  })
                   // Container(
                   //   child: Row(
                   //     children: [
@@ -2316,7 +2151,99 @@ class PosSalePage extends StatelessWidget {
                   // ),
                 ],
               )))),
-    ).then((value) => isScanCard = false);
+    ).then((value) {
+      isScanCard = false;
+      // Get.back();
+    });
+  }
+
+  Widget _buildSuccessContent() {
+    return Container(
+      child: Column(
+        children: [
+          Text(
+            cdc.isDuplicateScan.value ? "ทำรายการไปแล้ว" : "ทำรายการสำเร็จ",
+            style: GoogleFonts.maitree(
+              color: cdc.isDuplicateScan.value ? Colors.orange : Colors.green,
+              fontSize: 25,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildActionButton(
+                label: "พิมพ์สลิป",
+                onTap: () async {
+                  await printSlip();
+                  await cdc.clear();
+                  Get.back();
+                },
+              ),
+              _buildActionButton(
+                label: "พิมพ์สลิป/เปิดลิ้นชัก",
+                fontSize: 20,
+                onTap: () async {
+                  await printSlip();
+                  cashDraw();
+                  await cdc.clear();
+                  Get.back();
+                },
+              ),
+              _buildActionButton(
+                label: "เปิดลิ้นชัก",
+                onTap: () {
+                  cashDraw();
+                  cdc.clear();
+                  Get.back();
+                },
+              ),
+              _buildActionButton(
+                label: "ปิด",
+                background: Colors.red,
+                onTap: () {
+                  cdc.clear();
+                  Get.back();
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required String label,
+    required VoidCallback onTap,
+    Color background = Colors.blue,
+    double fontSize = 22,
+  }) {
+    return Expanded(
+      child: InkWell(
+        splashColor: Colors.red,
+        onTap: onTap,
+        child: Container(
+          height: 100,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          margin: const EdgeInsets.all(1),
+          padding: const EdgeInsets.all(5),
+          child: Text(
+            label,
+            style: GoogleFonts.maitree(
+              fontSize: fontSize,
+              color: Colors.white,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
   }
 
   hidKeyboard() {
@@ -2753,7 +2680,8 @@ class PosSalePage extends StatelessWidget {
     await SunmiPrinter.bold();
     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
     await SunmiPrinter.printText('ขอบคุณที่สนับสนุนกิจการของเรือนจำ');
-    await SunmiPrinter.printText('รายได้จะนำกลับไปพัฒนาความเป็นอยู่ลูกหลานของท่าน');
+    await SunmiPrinter.printText(
+        'รายได้จะนำกลับไปพัฒนาความเป็นอยู่ลูกหลานของท่าน');
     await SunmiPrinter.lineWrap(2);
 
     await SunmiPrinter.printText('------------------------------');
@@ -2839,59 +2767,91 @@ class PosSalePage extends StatelessWidget {
   //   await EpsonEPOS.onPrint(printer, commands);
   // }
 
+  /// จัดการเลขบัตรที่ scan เข้ามา (ทั้ง keyboard-wedge และ NFC)
+  /// เก็บไว้ใน buffer → รอ 500ms → เลือกตัวที่ยาวที่สุด (ครบที่สุด)
+  void _handleCardScan(String cardNo) {
+    if (_isCardProcessing) {
+      print("_handleCardScan: skipped (already processing)");
+      return;
+    }
+
+    final trimmed = cardNo.trim();
+    if (trimmed.isEmpty) return;
+
+    // เก็บเข้า buffer
+    _cardScanBuffer.add(trimmed);
+    print("Card buffer: $_cardScanBuffer");
+
+    // รีเซ็ต timer ทุกครั้ง → รอจนไม่มีค่าใหม่เข้ามาอีก 500ms
+    _cardDebounceTimer?.cancel();
+    _cardDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (_cardScanBuffer.isEmpty || _isCardProcessing) return;
+
+      // เลือกเลขบัตรที่ยาวที่สุด (ครบที่สุด)
+      _cardScanBuffer.sort((a, b) => b.length.compareTo(a.length));
+      final bestCard = _cardScanBuffer.first;
+      print("Card selected (longest): $bestCard from ${_cardScanBuffer.length} scans");
+      _cardScanBuffer.clear();
+
+      // เช็คความยาวขั้นต่ำ (เลขบัตรจริงต้อง >= 8 หลัก)
+      if (bestCard.length < 8) {
+        print("Card number too short ($bestCard), ignoring");
+        return;
+      }
+
+      _isCardProcessing = true;
+      cdc.order.value.cardNumber = bestCard;
+      cdc.payCardToBill().then((_) {
+        _isCardProcessing = false;
+      }).catchError((e) {
+        print("payCardToBill error: $e");
+        _isCardProcessing = false;
+      });
+    });
+  }
+
+  /// รีเซ็ตสถานะ card scan เมื่อเปิด dialog ชำระใหม่
+  void _resetCardScan() {
+    _cardDebounceTimer?.cancel();
+    _cardScanBuffer.clear();
+    _isCardProcessing = false;
+    cdc.isPayProcess.value = false;
+    cdc.isPaySuccess.value = false;
+    cdc.errorCard.value = "";
+    cdc.isDuplicateScan.value = false;
+  }
+
   void _scanCardNFC() async {
-    print("start");
+    print("start NFC");
     bool isAvailable = await NfcManager.instance.isAvailable();
-    print(isAvailable);
+    print("NFC available: $isAvailable");
 
-
-
-
-
-    if(isAvailable) {
+    if (isAvailable) {
       try {
-        // bool sst = await NfcManager.instance.isAvailable();
-        // print(sst);
         await displayManager.transferDataToPresentation("123");
-        // paymentController.waitReceive.value = "กรุณาแตะบัตร";
-        // NfcManager.instance.stopSession();
         await NfcManager.instance.reactive();
         await NfcManager.instance.startSession(
             onDiscovered: (NfcTag tag) async {
-              var nfca = tag.data["nfca"];
-              if (nfca != null) {
-                var identifier = nfca["identifier"];
-                if (identifier != null) {
-                  int decimalValue = (identifier[3] << 24) |
+          var nfca = tag.data["nfca"];
+          if (nfca != null) {
+            var identifier = nfca["identifier"];
+            if (identifier != null) {
+              int decimalValue = (identifier[3] << 24) |
                   (identifier[2] << 16) |
                   (identifier[1] << 8) |
                   identifier[0];
-                  // setState(() {
-                  // scannedRFID = decimalValue.toString();
-                  // await paymentController.payment(
-                  //   scannedRFID,
-                  //   paymentController.price.value,
-                  // );
 
-                  cdc.order.value.cardNumber = decimalValue.toString();
-                  cdc.payCardToBill();
-                  // });
-                }
-              }
-              print(nfca);
-              // setState(() {
-              //   nfcData = tag.data.toString();
-              // });
-              // NfcManager.instance.stopSession();
-            }).catchError((onError) => {print(onError.toString())});
+              // ใช้ debounce เหมือนกับ keyboard-wedge
+              _handleCardScan(decimalValue.toString());
+            }
+          }
+          print(nfca);
+        }).catchError((onError) => {print(onError.toString())});
       } catch (e) {
         print(e.toString());
-        // setState(() {
-        //   nfcData = "เกิดข้อผิดพลาด: $e";
-        // });
       }
-    }else{
-      print("NFC Error");
+    } else {
+      print("NFC not available");
     }
   }
 }

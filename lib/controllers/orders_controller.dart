@@ -27,6 +27,7 @@ class OrdersController extends GetxController {
   RxString payCash = "0.00".obs;
   Rx<String> change = '0.0'.obs;
   Rx<String> errorCard = "".obs;
+  RxBool isDuplicateScan = false.obs;
   @override
   void onInit() {
     super.onInit();
@@ -146,8 +147,8 @@ class OrdersController extends GetxController {
     order.value.customer!.customerNo = "CM000001";
     order.value.customer!.fName = "เงินสด";
     order.value.receiveCash = 0;
-    order.value.customer!.balance="0";
-    order.value.payType="0";
+    order.value.customer!.balance = "0";
+    order.value.payType = "0";
 
     count.value = 0;
 
@@ -254,6 +255,14 @@ class OrdersController extends GetxController {
   }
 
   payCardToBill() async {
+    // กันแตะบัตรซ้ำหลังชำระสำเร็จแล้ว → dialog แสดง "ทำรายการสำเร็จ" อยู่แล้ว
+    if (isPaySuccess.value && errorCard.value.isEmpty) {
+      print("payCardToBill: already completed, ignoring re-scan");
+      isDuplicateScan.value = true;
+      return;
+    }
+    isDuplicateScan.value = false;
+
     bool network = await ApiService().getPingPong();
 
     final mc = GetStorage();
@@ -263,25 +272,36 @@ class OrdersController extends GetxController {
       order.value.billSubTotal = order.value.billTotal;
       order.value.payType = "0";
       order.value.status = "2";
-      print(order.value);
+      print("====order to json===");
+      print(order.value.toJson());
       dynamic rep = await POSService().saveBillsCard(order.value);
 
+      bool isError = false;
       if (rep == "error") {
+        isError = true;
+      } else if (rep is Map && rep["status"] == "error") {
+        isError = true;
+      }
+
+      if (isError) {
+        // ------------------
         isPaySuccess.value = true;
-        // CardInfo card = CardInfo();
-        // card.cardNumber=order.value.cardNumber;
-        // card.accName = rep["data"]['AccName'];
-        //
-        // card.amount="0.00";
-        // if(rep["data"]!=null) {
-        //   orderSuccess.value.customerName = rep["data"]?['AccName'];
-        // }
-        // orderSuccess.value = rep;
-        errorCard.value = "ไม่พบบัตร";
+
+        String errorMsg = "ไม่พบบัตร";
+        if (rep is Map && rep["error"] != null) {
+          errorMsg = rep["error"];
+        }
+
+        errorCard.value = errorMsg; // ใช้ข้อความจาก Server
         update();
         orderSuccess.refresh();
+
+        // เพิ่ม Log เพื่อ debug
+        print("Card Error: $errorMsg");
       } else {
-        if (rep["bill"]["billNo"] != "") {
+        if (rep["bill"] != null &&
+            rep["bill"] is! List &&
+            rep["bill"]["billNo"] != "") {
           isPaySuccess.value = true;
           // order.value = rep;
 
@@ -296,28 +316,27 @@ class OrdersController extends GetxController {
           card.cardNumber = order.value.cardNumber;
           card.accName = rep["data"]['AccName'];
           card.amount = rep["data"]['Amount'].toString();
-          orderSuccess.value.customer?.customerNo=rep["bill"]["CustomerNo"];
-          orderSuccess.value.customer?.fName=rep["bill"]["CustomerName"];
+          orderSuccess.value.customer?.customerNo = rep["bill"]["CustomerNo"];
+          orderSuccess.value.customer?.fName = rep["bill"]["CustomerName"];
 
           orderSuccess.value.card = card;
-          orderSuccess.value.customer?.balance=card.amount;
+          orderSuccess.value.customer?.balance = card.amount;
           print("==>BillItem");
-          orderSuccess.value.payType="card";
+          orderSuccess.value.payType = "card";
           print(orderSuccess.value.billItem![0]);
           print(orderSuccess.value.billItem![0].productName);
-          orderSuccess.value.cardBalance =  card.amount;
-  order.value.payType="card";
-          order.value.customer?.customerNo=rep["bill"]["CustomerNo"];
-          order.value.customer?.fName=rep["bill"]["CustomerName"];
-  order.value.customer?.balance=card.amount;
-          print( orderSuccess.value.cardBalance);
+          orderSuccess.value.cardBalance = card.amount;
+          order.value.payType = "card";
+          order.value.customer?.customerNo = rep["bill"]["CustomerNo"];
+          order.value.customer?.fName = rep["bill"]["CustomerName"];
+          order.value.customer?.balance = card.amount;
+          print(orderSuccess.value.cardBalance);
           print("Send to Display==================>");
           await displayManager.transferDataToPresentation(order.value.toJson());
           clear(isclearDisplay: false);
         }
       }
     } else {
-
       isPayProcess.value = true;
       print("saleOffline::" + mc.read(Constant.saleOffline).toString());
       print(mc.read(Constant.saleOffline));

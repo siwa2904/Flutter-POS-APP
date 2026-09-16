@@ -20,10 +20,7 @@ class POSService {
         onRequest: (options, handler) async {
           final mc = GetStorage();
           SharedPreferences prefs = await SharedPreferences.getInstance();
-          options.baseUrl = "https://" +
-              prefs.getString(Constant.ipServer)! +
-              "/" +
-              Constant.apiUrl;
+          options.baseUrl = "http://${prefs.getString(Constant.ipServer)!}/api/${Constant.apiUrl}";
           options.headers = {
             "Authorization": "Bearer " + prefs.getString(Constant.token)!,
           };
@@ -116,10 +113,9 @@ class POSService {
 
   Future<dynamic> saveBillsCard(BillModel bill) async {
     try {
-
-      DIO.Response response =
-          await _dio.post('/bill/saveCard', data: billModelToJson(bill));
-print("========");
+      print(bill);
+      DIO.Response response = await _dio.post('/bill/saveCard', data: billModelToJson(bill));
+      print("========");
       print(response);
       print("*******");
       if (response.statusCode == 200) {
@@ -167,6 +163,7 @@ print("========");
       SharedPreferences prefs = await SharedPreferences.getInstance();
       var now = DateTime.now();
       var formatter = DateFormat('yyyy-MM-dd');
+      print(formatter);
       var param = {"pos": Constant.POS_ID, "startDate": formatter};
       final DIO.Response response = await _dio.get(
           "/account/report/sale?pos_id=${prefs.getString(Constant.posNo)}");

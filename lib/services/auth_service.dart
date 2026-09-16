@@ -18,7 +18,9 @@ class AuthService {
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final authURL =
-        "https://" + prefs.getString(Constant.ipServer)! + "/" + Constant.apiUrl;
+        "http://${prefs.getString(Constant.ipServer)!}/api/${Constant.apiUrl}";
+    print("SSSSSSSSSSSSSS");
+    print("AuthURL: $authURL");
     var credentials = {
       "username": username,
       "password": password,
@@ -30,8 +32,10 @@ class AuthService {
     var dio = DioService.Dio();
 
     try {
-      DioService.Response response =
-          await dio.post('$authURL/Auth', data: credentials);
+      DioService.Response response = await dio.post('$authURL/Auth', data: credentials);
+      print("===Response===");
+      print(response);
+      print(response.data);
       print(response.statusCode);
       Get.snackbar("Response", response.statusCode.toString());
       if (response.statusCode == 200) {
@@ -50,7 +54,7 @@ class AuthService {
         prefs.setString(Constant.ShopLogo, resp['ShopLogo']);
         return true;
       }else{
-
+        print("===NO===");
       }
     } catch (e) {
       print(e);

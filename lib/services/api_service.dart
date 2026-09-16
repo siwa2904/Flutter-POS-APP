@@ -11,15 +11,13 @@ class ApiService {
     ..interceptors.add(InterceptorsWrapper(
         onRequest: (options, handler) async {
           SharedPreferences prefs = await SharedPreferences.getInstance();
-          options.baseUrl = "https://" +
-              prefs.getString(Constant.ipServer)! +
-              "/" +
-              Constant.apiUrl;
-          ;
+          options.baseUrl = "http://${prefs.getString(Constant.ipServer)!}/api/${Constant.apiUrl}";
           options.headers = {
             "Authorization": "bearer " + prefs.getString(Constant.token)!,
             "App-key": prefs.getString(Constant.AppKey)
           };
+          print(options.baseUrl);
+          print(options.baseUrl);
           return handler.next(options);
         },
         onResponse: (response, handler) async {
@@ -38,10 +36,9 @@ class ApiService {
   Future<bool> getPingPong() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     try {
-
-      var response = await Dio().get("https://" +
+      var response = await Dio().get("http://" +
           prefs.getString(Constant.ipServer)! +
-          "/" +
+          "/api/" +
           Constant.apiUrl +
           "/pingServer");
       print(response.statusCode);
