@@ -141,6 +141,8 @@ class SettingPage extends StatelessWidget {
                             _submitButton(context),
                             SizedBox(height: height * .0085),
                             _update(context),
+                            SizedBox(height: 10),
+                            _soundSwitch(),
                             SizedBox(height: height * .055),
                             // ElevatedButton.icon(
                             //   onPressed: () {
@@ -360,6 +362,29 @@ class SettingPage extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
         ),
       ),
+    );
+  }
+
+  Widget _soundSwitch() {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      activeColor: Colors.green,
+      secondary: Icon(
+        settingCtrl.soundEnabled.value
+            ? Icons.volume_up_rounded
+            : Icons.volume_off_rounded,
+        size: 28,
+      ),
+      title: Text(
+        'เสียงแจ้งผลชำระเงินด้วยบัตร',
+        style: GoogleFonts.kanit(fontSize: 20, fontWeight: FontWeight.w400),
+      ),
+      subtitle: Text(
+        'มีผลทันที ไม่ต้องกดบันทึก',
+        style: GoogleFonts.kanit(fontSize: 14),
+      ),
+      value: settingCtrl.soundEnabled.value,
+      onChanged: settingCtrl.setSoundEnabled,
     );
   }
 

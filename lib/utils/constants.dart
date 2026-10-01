@@ -56,6 +56,7 @@ class Constant {
   static const String ipServer="ipServer";
   static const String posNo="posNo";
   static const String saleOffline = "saleOffline";
+  static const String soundEnabled = "soundEnabled";
 
   static final String POS_ID="2";
   static final String POS_CODE="POS_CODE";

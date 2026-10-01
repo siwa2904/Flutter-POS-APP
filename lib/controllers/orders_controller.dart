@@ -14,6 +14,7 @@ import 'package:sprintf/sprintf.dart';
 import '../models/order_model.dart';
 import '../models/product_model.dart';
 import '../services/api_service.dart';
+import '../services/sound_service.dart';
 
 class OrdersController extends GetxController {
   Rx<BillModel> order = BillModel().obs;
@@ -28,9 +29,11 @@ class OrdersController extends GetxController {
   Rx<String> change = '0.0'.obs;
   Rx<String> errorCard = "".obs;
   RxBool isDuplicateScan = false.obs;
+  final SoundService _sound = SoundService();
   @override
   void onInit() {
     super.onInit();
+    _sound.preload();
     clear();
     order.value.billTotal = 0;
     order.value.receiveCash = 0;
@@ -259,6 +262,7 @@ class OrdersController extends GetxController {
     if (isPaySuccess.value && errorCard.value.isEmpty) {
       print("payCardToBill: already completed, ignoring re-scan");
       isDuplicateScan.value = true;
+      _sound.playDuplicate();
       return;
     }
     isDuplicateScan.value = false;
@@ -298,11 +302,13 @@ class OrdersController extends GetxController {
 
         // เพิ่ม Log เพื่อ debug
         print("Card Error: $errorMsg");
+        _sound.playFailed();
       } else {
         if (rep["bill"] != null &&
             rep["bill"] is! List &&
             rep["bill"]["billNo"] != "") {
           isPaySuccess.value = true;
+          _sound.playSuccess();
           // order.value = rep;
 
           if (rep["bill"] != null) {
@@ -334,10 +340,19 @@ class OrdersController extends GetxController {
           print("Send to Display==================>");
           await displayManager.transferDataToPresentation(order.value.toJson());
           clear(isclearDisplay: false);
+        } else {
+          // server ตอบกลับมาโดยไม่ใช่ error แต่ไม่มี billNo ที่ใช้ได้
+          // เคสนี้ UI ค้างอยู่ที่หน้ารอโดยไม่แสดงอะไร แคชเชียร์จึงไม่รู้ว่าเกิดอะไรขึ้น
+          // จึงส่งเสียงแจ้งว่าไม่สำเร็จไว้ก่อน ส่วนการซ่อม dialog ที่ค้างเป็นคนละงาน
+          print("payCardToBill: unexpected response shape_____ => $rep");
+          _sound.playFailed();
         }
       }
     } else {
       isPayProcess.value = true;
+      // จงใจไม่เล่นเสียงในเส้นทาง offline ไม่ใช่ลืม
+      // บิลถูกบันทึกลงเครื่องรอ sync เท่านั้น เงินยังไม่ถูกตัดจากบัตรจริง
+      // ถ้าเล่นเสียง "ชำระเงินสำเร็จ" ตรงนี้จะทำให้เข้าใจผิดว่าตัดเงินแล้ว
       print("saleOffline::" + mc.read(Constant.saleOffline).toString());
       print(mc.read(Constant.saleOffline));
       isPaySuccess.value = mc.read(Constant.saleOffline);

@@ -64,6 +64,7 @@ dependencies:
   open_filex: ^4.3.2
   path_provider: ^2.0.15
   permission_handler: ^11.0.1
+  audioplayers: ^4.1.0
 
 dev_dependencies:
   flutter_test:
@@ -97,6 +98,7 @@ flutter:
     - assets/images/
     - assets/images/intro/
     - assets/icon/
+    - assets/sounds/
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware
 

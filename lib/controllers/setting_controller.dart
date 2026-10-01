@@ -2,6 +2,7 @@
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:mispos/services/sound_service.dart';
 import 'package:mispos/utils/constants.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,6 +15,7 @@ class SettingController extends GetxController {
   Rx<String> ipServer = ''.obs;
   Rx<String> posID = ''.obs;
   Rx<bool> saleOffline = false.obs;
+  Rx<bool> soundEnabled = true.obs;
   Rx<bool> isCheckingConnection = false.obs;
   Rx<String> connectionMessage = ''.obs;
   final mc = GetStorage();
@@ -21,6 +23,14 @@ class SettingController extends GetxController {
   void onInit() {
     super.onInit();
     print("Init SettingController");
+    soundEnabled.value = SoundService.enabled;
+  }
+
+  /// บันทึกทันทีที่สลับ ไม่ผ่าน setUpSetting()
+  /// เพราะปุ่มบันทึกต้องกรอก IP/รหัสเครื่องใหม่และต้องต่อ server ได้ ซึ่งเกินจำเป็นแค่จะปิดเสียง
+  void setSoundEnabled(bool value) {
+    soundEnabled.value = value;
+    SoundService.enabled = value;
   }
 
   /// เช็คว่าเชื่อมต่อ server ได้หรือไม่ ก่อนจะบันทึก
