@@ -2679,9 +2679,7 @@ class PosSalePage extends StatelessWidget {
     await SunmiPrinter.line();
     await SunmiPrinter.bold();
     await SunmiPrinter.setAlignment(SunmiPrintAlign.CENTER);
-    await SunmiPrinter.printText('ขอบคุณที่สนับสนุนกิจการของเรือนจำ');
-    await SunmiPrinter.printText(
-        'รายได้จะนำกลับไปพัฒนาความเป็นอยู่ลูกหลานของท่าน');
+    await SunmiPrinter.printText('ขอบคุณที่ใช้บริการ');
     await SunmiPrinter.lineWrap(2);
 
     await SunmiPrinter.printText('------------------------------');
