@@ -22,29 +22,28 @@ class _AppState extends State<App> {
   DisplayManager displayManager = DisplayManager();
   List<Display?> displays = [];
 
+  /// เปิดหน้าจอลูกค้าบนจอที่สองของเครื่อง
+  ///
+  /// เลือกจอที่เลขน้อยที่สุดที่ไม่ใช่จอหลัก ไม่ใช่จอสุดท้าย เพราะตอนต่อ AnyDesk อยู่
+  /// AnyDesk สร้างจอเสมือนไว้ส่งภาพ ถ้าแอปเปิดตอนนั้นจะเห็นจอนี้ด้วย และได้เลขสูงกว่าจอลูกค้าจริง
+  /// ที่ลงทะเบียนตั้งแต่เปิดเครื่อง เดิมเลือกจอสุดท้าย จอลูกค้าเลยไปขึ้นในจอของ AnyDesk แทน
   handleMonitor() async {
-    final values = await displayManager.getDisplays();
+    final values = await displayManager.getDisplays() ?? [];
     displays.clear();
-    displays.addAll(values!);
-    int? displayId = 1;
-    print(displays);
-    for (final display in displays) {
-      if (display?.displayId!=0){
-        displayId=display?.displayId;
-      }
-    }
+    displays.addAll(values);
+    print(values.map((d) => "${d.displayId}:${d.name}").toList());
+
+    final secondary = values
+        .where((d) => d.displayId != DEFAULT_DISPLAY)
+        .toList()
+      ..sort((a, b) => a.displayId.compareTo(b.displayId));
+    if (secondary.isEmpty) return;
+
+    final displayId = secondary.first.displayId;
     print("displayId");
     print(displayId);
-    if (displayId != null) {
-      for (final display in displays) {
-
-        if (display?.displayId == displayId) {
-
-          await displayManager.showSecondaryDisplay(
-              displayId: displayId, routerName: "cm_display");
-        }
-      }
-    }
+    await displayManager.showSecondaryDisplay(
+        displayId: displayId, routerName: "cm_display");
     // await displayManager.transferDataToPresentation("gggg");
   }
   // storgeHandle() async{

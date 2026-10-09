@@ -58,14 +58,16 @@ class CmdController extends GetxController {
 
   resetDisplay() {
     print("ssssddd");
-    orderDis = BillModel().obs;
-    orderDis.value.customer = Customer();
-    orderDis.value.customer!.customerNo = "CM000001";
-    orderDis.value.customer!.fName = "เงินสด";
-    orderDis.value.customer!.balance="0.0";
-    orderDis.value.billTotal = 0;
-    orderDis.value.billItem = [];
-    orderDis.value.receiveCash=0;
+    // ต้องเปลี่ยนที่ .value ถ้าสร้าง Rx ใหม่ Obx ในจอลูกค้ายังผูกกับตัวเก่าและไม่อัปเดต
+    final empty = BillModel();
+    empty.customer = Customer();
+    empty.customer!.customerNo = "CM000001";
+    empty.customer!.fName = "เงินสด";
+    empty.customer!.balance = "0.0";
+    empty.billTotal = 0;
+    empty.billItem = [];
+    empty.receiveCash = 0;
+    orderDis.value = empty;
     change.value='0';
     update();
   }

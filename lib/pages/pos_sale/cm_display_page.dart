@@ -19,9 +19,8 @@ class CmDisplayPage extends StatelessWidget {
             callback: (arguments) {
               print("SetDisplay CM");
               print(arguments);
-              print("================= 2326671896 ");
-              print(arguments["cardBalance"]);
-              print("################");
+              // ห้ามอ่าน arguments["..."] ก่อนเช็คชนิด ตอนเคลียร์จะส่งข้อความ "CLEAR" มา
+              // อ่านแบบ map จะ error ก่อนถึงคำสั่งล้างจอ จอลูกค้าเลยค้างข้อมูลคนก่อน
               if (arguments != null) {
                 cdc.setDataDisplay(arguments);
               }
