@@ -149,7 +149,8 @@ class PosSalePage extends StatelessWidget {
                                           onSubmitted: (value) async {
                                             var dd = await posCtrl
                                                 .fillterProduct(value);
-                                            if (dd.prsoductId != "") {
+                                            // ไม่พบบาร์โค้ดใน "จำนวน*บาร์โค้ด" จะได้ null
+                                            if (dd != null && dd.productId != "") {
                                               cdc.addItem(dd);
                                               fieldTextSearch.clear();
                                               posCtrl.fillterProduct("");
@@ -382,6 +383,17 @@ class PosSalePage extends StatelessWidget {
           // color: Colors.blueAccent,
           child: InkWell(
             onTap: () async {
+              // ตะกร้าว่างแล้วแตะบัตร server จะได้บิล 0 บาทที่ไม่มีสินค้า
+              if (cdc.order.value.billItem?.isEmpty ?? true) {
+                // ใช้ SnackBar ของ Flutter ไม่ใช่ Get.snackbar
+                // เพราะ Get.back() จะไปปิด Get.snackbar แทนหน้าต่างชำระเงินถ้ายังค้างอยู่
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text("ยังไม่มีสินค้าในตะกร้า",
+                      style: TextStyle(fontSize: 20)),
+                  duration: Duration(seconds: 2),
+                ));
+                return;
+              }
               cdc.orderSuccess.value = cdc.order.value;
               print("sssssssssssssssssssssssssssdsdsdsdd");
               print(cdc.orderSuccess.value.toJson());
@@ -755,17 +767,6 @@ class PosSalePage extends StatelessWidget {
                                             5,
                                     scrollDirection: Axis.vertical,
                                     itemBuilder: (context, index) {
-                                      if (index <
-                                          (cdc.order.value.billItem!.length ??
-                                              0)) {
-                                        _textcontroller.add(
-                                            TextEditingController(text: "1"));
-                                        _textcontroller[index].text = cdc
-                                            .order.value.billItem![index].qty
-                                            .toString();
-                                        _textcontroller[index].selectAll();
-                                      }
-
                                       return (index <
                                               (cdc.order.value.billItem!
                                                       .length ??
@@ -817,77 +818,31 @@ class PosSalePage extends StatelessWidget {
                                                                 .maitree(),
                                                             maxLines: 1,
                                                           )),
+                                                      _qtyStepper(index),
                                                       Expanded(
                                                           flex: 2,
-                                                          // ignore: prefer_interpolation_to_compose_strings
-                                                          child: Row(
-                                                            children: [
-                                                              Expanded(
-                                                                  flex: 2,
-                                                                  child:
-                                                                      TextField(
-                                                                    readOnly:
-                                                                        true,
-                                                                    controller:
-                                                                        _textcontroller[
-                                                                            index],
-                                                                    onTap: () {
-                                                                      _textcontroller[
-                                                                              index]
-                                                                          .selectAll();
-
-                                                                      // .selection = TextSelection.fromPosition(TextPosition(offset:cdc
-                                                                      //     .order
-                                                                      //     .value
-                                                                      //     .billItem![
-                                                                      // index]
-                                                                      //     .qty.toString().length));
-                                                                    }
-                                                                    // TextEditingController(text:  cdc
-                                                                    //     .order
-                                                                    //     .value
-                                                                    //     .billItem![
-                                                                    // index]
-                                                                    //     .qty.toString()).selectAll
-                                                                    ,
-                                                                    keyboardType:
-                                                                        TextInputType
-                                                                            .number,
-                                                                    inputFormatters: <
-                                                                        TextInputFormatter>[
-                                                                      FilteringTextInputFormatter
-                                                                          .digitsOnly
-                                                                    ],
-                                                                    onChanged:
-                                                                        (value) {
-                                                                      cdc
-                                                                          .order
-                                                                          .value
-                                                                          .billItem![
-                                                                              index]
-                                                                          .qty = int.parse(value);
-                                                                      cdc.updateOrder(
-                                                                          index);
-                                                                    },
-                                                                  )),
-                                                            ],
-                                                          )),
-                                                      Expanded(
-                                                          flex: 2,
-                                                          child: Text(
-                                                              cdc
-                                                                  .order
-                                                                  .value
-                                                                  .billItem![
-                                                                      index]
-                                                                  .price
-                                                                  .toString(),
-                                                              textAlign:
-                                                                  TextAlign.end,
-                                                              style: GoogleFonts
-                                                                  .maitree(
-                                                                      fontSize:
-                                                                          18)))
+                                                          // ราคาหลักพันกว้างกว่าช่อง ย่อให้พอดีแทนการขึ้นบรรทัดใหม่
+                                                          child: FittedBox(
+                                                            fit: BoxFit
+                                                                .scaleDown,
+                                                            alignment: Alignment
+                                                                .centerRight,
+                                                            child: Text(
+                                                                cdc
+                                                                    .order
+                                                                    .value
+                                                                    .billItem![
+                                                                        index]
+                                                                    .price
+                                                                    .toString(),
+                                                                textAlign:
+                                                                    TextAlign
+                                                                        .end,
+                                                                style: GoogleFonts
+                                                                    .maitree(
+                                                                        fontSize:
+                                                                            18)),
+                                                          ))
                                                     ],
                                                   )))
                                           : const SizedBox(height: 40);
@@ -896,6 +851,46 @@ class PosSalePage extends StatelessWidget {
                     ])))
           ]),
         ));
+  }
+
+  /// ลูกศรเพิ่มลดจำนวนในแถวสินค้า ลดได้ต่ำสุด 1 ชิ้น เอาออกทั้งรายการใช้กากบาท
+  Widget _qtyStepper(int index) {
+    final qty = cdc.order.value.billItem![index].qty ?? 1;
+    return SizedBox(
+      width: 120,
+      child: Row(
+        children: [
+          _qtyArrow(Icons.keyboard_arrow_down_rounded,
+              qty > 1 ? () => cdc.changeQty(index, -1) : null),
+          Expanded(
+            child: Text(qty.toString(),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                style: GoogleFonts.maitree(fontSize: 18)),
+          ),
+          _qtyArrow(Icons.keyboard_arrow_up_rounded,
+              () => cdc.changeQty(index, 1)),
+        ],
+      ),
+    );
+  }
+
+  Widget _qtyArrow(IconData icon, VoidCallback? onTap) {
+    final enabled = onTap != null;
+    return Material(
+      color: enabled ? Colors.blue.shade50 : Colors.grey.shade100,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(icon,
+              size: 28, color: enabled ? Colors.blue : Colors.grey.shade400),
+        ),
+      ),
+    );
   }
 
   Future<List<CustomerModel>> getCustData(filter) async {
@@ -2779,6 +2774,7 @@ class PosSalePage extends StatelessWidget {
     // เก็บเข้า buffer
     _cardScanBuffer.add(trimmed);
     print("Card buffer: $_cardScanBuffer");
+    cdc.showCardProcessing();
 
     // รีเซ็ต timer ทุกครั้ง → รอจนไม่มีค่าใหม่เข้ามาอีก 500ms
     _cardDebounceTimer?.cancel();
@@ -2794,6 +2790,7 @@ class PosSalePage extends StatelessWidget {
       // เช็คความยาวขั้นต่ำ (เลขบัตรจริงต้อง >= 8 หลัก)
       if (bestCard.length < 8) {
         print("Card number too short ($bestCard), ignoring");
+        cdc.cancelCardProcessing();
         return;
       }
 
@@ -2804,6 +2801,8 @@ class PosSalePage extends StatelessWidget {
       }).catchError((e) {
         print("payCardToBill error: $e");
         _isCardProcessing = false;
+        // วงหมุนขึ้นไปแล้วตั้งแต่อ่านบัตร ถ้าพังก่อนได้ผลต้องเอาออก ไม่งั้นหมุนค้าง
+        cdc.cancelCardProcessing();
       });
     });
   }

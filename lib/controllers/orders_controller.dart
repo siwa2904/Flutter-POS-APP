@@ -58,10 +58,14 @@ class OrdersController extends GetxController {
           element.productId == prod.productId && prod.skuSelect == element.sku);
 
       if (ind > -1) {
-        order.value.billItem![ind].qty = order.value.billItem![ind].qty! + 1;
+        // พิมพ์ "จำนวน*บาร์โค้ด" ส่งจำนวนมาใน qty ต้องบวกตามนั้น ไม่ใช่บวกทีละ 1
+        order.value.billItem![ind].qty =
+            order.value.billItem![ind].qty! + (prod.qty ?? 1);
         order.value.billItem![ind].total = (order.value.billItem![ind].qty! *
                 order.value.billItem![ind].price!)
             .toString();
+        // prod อาจเป็นสินค้าตัวเดียวกับในรายการสินค้า คืนค่าไว้ ไม่งั้นครั้งหน้าจะได้จำนวนเดิมติดไป
+        prod.qty = 1;
       } else {
         BillItem itm = BillItem();
 
@@ -257,6 +261,23 @@ class OrdersController extends GetxController {
     }
   }
 
+  /// ขึ้นวงหมุนทันทีที่อ่านเลขบัตรได้ ไม่ต้องรอ debounce กับการเช็ค server
+  /// เดิมวงหมุนขึ้นหลังสองขั้นนั้นรวม 0.8-1.4 วิ ระหว่างนั้นจอนิ่งจนดูเหมือนแอปค้าง
+  /// ข้ามถ้าบิลนี้จ่ายสำเร็จแล้ว การแตะซ้ำต้องคงหน้าสำเร็จไว้ให้ payCardToBill เล่นเสียงแตะซ้ำ
+  void showCardProcessing() {
+    if (isPaySuccess.value && errorCard.value.isEmpty) return;
+    isDuplicateScan.value = false;
+    errorCard.value = "";
+    isPaySuccess.value = false;
+    isPayProcess.value = true;
+  }
+
+  /// เลขบัตรที่อ่านได้ใช้ไม่ได้ เอาวงหมุนออก กลับไปรอแตะบัตร
+  void cancelCardProcessing() {
+    if (isPaySuccess.value) return;
+    isPayProcess.value = false;
+  }
+
   payCardToBill() async {
     // กันแตะบัตรซ้ำหลังชำระสำเร็จแล้ว → dialog แสดง "ทำรายการสำเร็จ" อยู่แล้ว
     if (isPaySuccess.value && errorCard.value.isEmpty) {
@@ -428,6 +449,20 @@ class OrdersController extends GetxController {
       }
       Get.snackbar("เกิดข้อผิดพลาด", "ไม่สามารถติดต่อ server ได้");
     }
+  }
+
+  /// ลูกศรเพิ่มลดจำนวนในตะกร้า ลดได้ต่ำสุด 1 ชิ้น จะเอาออกทั้งรายการให้กดกากบาท
+  /// ถ้ากดลดที่ 1 แล้วรายการหายไป แคชเชียร์ที่กดรัวจะลบสินค้าโดยไม่ตั้งใจ
+  changeQty(int index, int delta) async {
+    final item = order.value.billItem![index];
+    final qty = (item.qty ?? 1) + delta;
+    if (qty < 1) return;
+    item.qty = qty;
+    item.total = (item.price! * qty).toString();
+    updateOrderCal();
+    // แก้ค่าในรายการไม่ได้แจ้ง Obx ของตะกร้า ต้อง refresh เอง
+    order.refresh();
+    await displayManager.transferDataToPresentation(order.value.toJson());
   }
 
   updateOrder(int index) async {
