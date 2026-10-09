@@ -58,7 +58,7 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     // bof.printLog();
     Future.delayed(Duration.zero, () {
-      CheckUpdate.check(context);
+      CheckUpdate.check();
     });
     hmctrl.getReport();
 
