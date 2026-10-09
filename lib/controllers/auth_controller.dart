@@ -6,7 +6,6 @@ import 'package:mispos/services/api_service.dart';
 import 'package:mispos/services/auth_service.dart';
 import 'package:mispos/utils/circular_progress_loading.dart';
 import 'package:mispos/utils/constants.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class returnAuth {
   bool? state;
@@ -18,6 +17,9 @@ class AuthController extends GetxController {
   var userPassword = '';
 
   final authFailMsg = "".obs;
+
+  /// ติดต่อ server ไม่ได้ ให้หน้า login แสดงปุ่มไปแก้ IP Server
+  final authFailIsServerProblem = false.obs;
   final rep = returnAuth().obs;
   final process = false.obs;
   final appVersion = "".obs;
@@ -32,19 +34,19 @@ class AuthController extends GetxController {
   Future<returnAuth> authen() async {
     process.value = true;
     authFailMsg.value = "";
-
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    authFailIsServerProblem.value = false;
 
     UserModel user = UserModel();
     user.username = userName;
     user.password = userPassword;
     user.authURL = Constant.apiUrl;
     print(user);
-    bool auth = await AuthService().login(user);
+    final result = await AuthService().login(user);
 
-    rep.value.state = auth;
-    rep.value.message = (!auth) ? "ชื่อผู้ใช้ หรือ รหัสผ่านไม่ถูกต้อง" : "";
-    authFailMsg.value = (!auth) ? "ชื่อผู้ใช้ หรือ รหัสผ่านไม่ถูกต้อง" : "";
+    rep.value.state = result.ok;
+    rep.value.message = result.message;
+    authFailMsg.value = result.message;
+    authFailIsServerProblem.value = result.serverProblem;
 
     process.value = false;
     return rep.value;

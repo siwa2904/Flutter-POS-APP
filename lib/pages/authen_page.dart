@@ -103,26 +103,9 @@ rfidReader() async{
                           color: Colors.white60),
                       child: Column(children: <Widget>[
                         _emailPasswordWidget(),
-                        // Obx(()=>(authControl.authFailMsg.value!="")
-                        //     ? Padding(
-                        //   padding: EdgeInsets.only(top: 30),
-                        //   child: Center(
-                        //     child: RichText(
-                        //       text: TextSpan(children: [
-                        //         TextSpan(
-                        //             text: authControl.authFailMsg.value,
-                        //             style: GoogleFonts.kanit(
-                        //
-                        //                 fontSize: 20,
-                        //                 fontWeight: FontWeight.w400,
-                        //                 color: Colors.red)),
-                        //       ]),
-                        //     ),
-                        //   ),
-                        // )
-                        //     : Padding(
-                        //   padding: EdgeInsets.all(3),
-                        // )),
+                        Obx(() => authControl.authFailMsg.value.isEmpty
+                            ? const SizedBox.shrink()
+                            : _loginError()),
                         SizedBox(height: 20),
                         _submitButton(context),
                         // _divider(),
@@ -275,9 +258,51 @@ rfidReader() async{
         ));
   }
 
+  /// บอกว่า login ไม่ผ่านเพราะอะไร ถ้าติดต่อ server ไม่ได้ให้ไปแก้ IP Server ได้จากตรงนี้
+  /// เดิมหน้า login ไม่มีทางไปหน้าตั้งค่า IP เปลี่ยนเมื่อไหร่แคชเชียร์ติดอยู่หน้านี้
+  Widget _loginError() {
+    const errorColor = Color(0xFFB71C1C);
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDECEA),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.error_outline, color: errorColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(authControl.authFailMsg.value,
+                    style: GoogleFonts.kanit(fontSize: 17, color: errorColor)),
+              ),
+            ],
+          ),
+          if (authControl.authFailIsServerProblem.value)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => Get.toNamed("/setting"),
+                icon: const Icon(Icons.settings_outlined),
+                label: Text("ตั้งค่า IP Server",
+                    style: GoogleFonts.kanit(fontSize: 16)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _submitButton(context) {
     return ElevatedButton.icon(
       onPressed: () {
+        // กดซ้ำระหว่างรอผลจะยิง login ซ้อนกัน
+        if (authControl.process.value) return;
         authControl.authFailMsg.value = "";
         if (_formKey.currentState!.validate()) {
           // authControl.authen();
