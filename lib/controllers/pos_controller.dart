@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:get/get.dart';
 import 'package:mispos/models/product_model.dart';
 import 'package:mispos/services/pos_service.dart';
+import 'package:mispos/utils/server_error_dialog.dart';
 import 'package:presentation_displays/displays_manager.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/customer_model.dart';
@@ -47,10 +48,7 @@ class POSController extends GetxController {
       //   return adate.toString().compareTo(bdate.toString());
       // });
     } catch (err) {
-      Get.snackbar("Error", "ไม่สามารถเชื่อมต่อ Server ได้");
-      Get.defaultDialog(
-        title: "ไม่สามารถเชื่อมต่อ Server ได้",
-      );
+      ServerErrorDialog.show();
     }
   }
 

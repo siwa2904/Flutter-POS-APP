@@ -10,6 +10,7 @@ import 'package:mispos/models/product_model.dart';
 import 'package:mispos/models/receive_change_model.dart';
 import 'package:mispos/models/report_sale_model.dart';
 import 'package:mispos/utils/constants.dart';
+import 'package:mispos/utils/server_error_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart' as DIO;
 
@@ -43,7 +44,7 @@ class POSService {
       print(response);
     } catch (error) {
       print(error);
-      Get.defaultDialog(title: "ไม่สามารถติดต่อ Server ได้");
+      ServerErrorDialog.show();
     }
     throw Exception("Network faild");
   }
@@ -56,7 +57,7 @@ class POSService {
         return catFromJson(jsonEncode(response.data["data"]));
       }
     } catch (error) {
-      Get.defaultDialog(title: "ไม่สามารถติดต่อ Server ได้");
+      ServerErrorDialog.show();
     }
     throw Exception("Network faild");
   }
@@ -173,7 +174,7 @@ class POSService {
       }
     } catch (error) {
       print(error);
-      Get.defaultDialog(title: "ไม่สามารถติดต่อ Server ได้");
+      ServerErrorDialog.show();
     }
     throw Exception("Network faild");
     // http://192.168.1.105:9001/api/v1/account/report/sale_report_daily
