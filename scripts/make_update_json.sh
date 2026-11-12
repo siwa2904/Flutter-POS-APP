@@ -6,7 +6,7 @@
 #   min_build  เครื่องที่ build ต่ำกว่านี้ต้องอัปเดตก่อนใช้งานต่อ ไม่ใส่ = ไม่บังคับ
 #              แอป 1.1.6 ลงไปไม่รู้จัก min_build ถ้าต้องบังคับเครื่องพวกนั้นด้วย ให้เพิ่ม "force": true เอง
 #
-# ผลลัพธ์: build/app/outputs/flutter-apk/update.json
+# ผลลัพธ์: build/app/outputs/flutter-apk/update.json และ mispos-<version>.apk (สำเนาของ app-release.apk)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -42,6 +42,12 @@ esac
 case $MIN_BUILD in
   *[!0-9]*) echo "min_build ต้องเป็นตัวเลข: $MIN_BUILD" >&2; exit 1 ;;
 esac
+# ลอกตัวอย่างมาทั้งบรรทัด เครื่องจะโหลด APK จาก http://<IP Server>/... ไม่ได้
+case $APK_URL in
+  *'<'* | *'>'*) echo "apk_url ยังมี <...> อยู่ ให้ใส่ IP Server จริง: $APK_URL" >&2; exit 1 ;;
+esac
+
+NAMED=build/app/outputs/flutter-apk/mispos-$VERSION.apk
 
 SHA=$(shasum -a 256 "$APK" | awk '{print $1}')
 
@@ -57,7 +63,15 @@ data.update({"apk_url": apk_url, "sha256": sha, "message": message})
 print(json.dumps(data, ensure_ascii=False, indent=4))
 EOF
 
+# copy ไม่ใช้ mv รันซ้ำเพื่อแก้ข้อความได้โดยไม่ต้อง build ใหม่
+cp "$APK" "$NAMED"
+
 echo "สร้าง $OUT แล้ว:"
 cat "$OUT"
 echo
-echo "อัปโหลด update.json ไปที่ http://<IP Server>/api/update.json และ APK ไปที่ $APK_URL ให้เป็นไฟล์เดียวกับที่ใช้สร้าง"
+echo "อัปโหลด 2 ไฟล์:"
+echo "  $NAMED  ->  $APK_URL"
+echo "  $OUT  ->  http://<IP Server>/api/update.json"
+if [ "${APK_URL##*/}" != "${NAMED##*/}" ]; then
+  echo "เตือน: ชื่อไฟล์ใน apk_url (${APK_URL##*/}) ไม่ตรงกับ ${NAMED##*/} ตอนอัปโหลดต้องตั้งชื่อให้ตรงกับ apk_url" >&2
+fi
