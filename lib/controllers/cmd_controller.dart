@@ -18,6 +18,10 @@ class CmdController extends GetxController {
   RxString payCash = "0.00".obs;
   Rx<String> change = '0.0'.obs;
   Rx<String> cardBalance ='0.00'.obs;
+
+  /// หน้าต่างเช็คบัตรที่เครื่องแคชเชียร์ null = จอปกติ
+  /// เก็บเป็น Map ตัวใหม่ทุกครั้ง แตะบัตรสองใบติดกันแล้วผลแบบเดียวกัน จอยังอัปเดต
+  Rxn<Map> cardCheck = Rxn<Map>();
   @override
   void onInit() {
     super.onInit();
@@ -38,6 +42,12 @@ class CmdController extends GetxController {
   setDataDisplay(dynamic cdm1) async {
     print("DDDD::");
     print(cdm1);
+    if (cdm1 is Map && cdm1["type"] == "cardCheck") {
+      cardCheck.value = Map.from(cdm1);
+      return;
+    }
+    // ได้บิลหรือ CLEAR มา แปลว่าหน้าต่างเช็คบัตรปิดแล้ว กลับไปจอปกติ
+    cardCheck.value = null;
     if (cdm1 == "CLEAR") {
       resetDisplay();
     } else {

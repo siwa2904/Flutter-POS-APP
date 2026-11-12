@@ -278,6 +278,17 @@ class OrdersController extends GetxController {
     isPayProcess.value = false;
   }
 
+  /// ยิงบาร์โค้ดสินค้าตอนรอแตะบัตรชำระเงิน ไม่ส่งไปตัดเงิน ขึ้นบอกแคชเชียร์แทน
+  /// ถ้าบาร์โค้ดบังเอิญตรงกับเลขบัตรของใคร เดิมจะไปตัดเงินบัตรนั้น
+  void rejectProductBarcode() {
+    if (isPaySuccess.value && errorCard.value.isEmpty) return;
+    isDuplicateScan.value = false;
+    errorCard.value = "นี่คือบาร์โค้ดสินค้า\nกรุณาแตะบัตรเพื่อชำระ";
+    isPayProcess.value = true;
+    isPaySuccess.value = true;
+    _sound.playFailed();
+  }
+
   payCardToBill() async {
     // กันแตะบัตรซ้ำหลังชำระสำเร็จแล้ว → dialog แสดง "ทำรายการสำเร็จ" อยู่แล้ว
     if (isPaySuccess.value && errorCard.value.isEmpty) {

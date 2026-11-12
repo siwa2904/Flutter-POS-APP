@@ -7,6 +7,8 @@ import 'package:mispos/controllers/cmd_controller.dart';
 import 'package:presentation_displays/secondary_display.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'card_check_display.dart';
+
 class CmDisplayPage extends StatelessWidget {
   // const CustomerDisplayPage({Key? key}) : super(key: key);
   List<int> nums = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -170,7 +172,10 @@ class CmDisplayPage extends StatelessWidget {
                                 )),
                             Expanded(
                                 flex: 60,
-                                child: Container(
+                                child: cdc.cardCheck.value != null
+                                    ? CardCheckDisplayPanel(
+                                        data: cdc.cardCheck.value!)
+                                    : Container(
                                   alignment: Alignment.topCenter,
                                   color: Colors.white,
                                   child: Column(

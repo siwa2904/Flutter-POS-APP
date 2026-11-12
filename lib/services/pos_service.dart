@@ -139,6 +139,19 @@ class POSService {
     throw Exception("Network faild");
   }
 
+  /// เช็คยอดบัตร อ่านอย่างเดียว ไม่สร้างบิล
+  /// ไม่พบบัตร server ตอบ {} จะได้ null ส่วนเน็ตหรือ server มีปัญหาจะ throw ให้ผู้เรียกจัดการ
+  Future<Map<String, dynamic>?> getCardDetail(String cardNumber) async {
+    final DIO.Response response = await _dio
+        .get("/shop/carddetail", queryParameters: {"cardNumber": cardNumber});
+    final data = response.data;
+    if (data is Map && data["AccountNo"] != null) {
+      return Map<String, dynamic>.from(data);
+    }
+    if (data is Map) return null;
+    throw const FormatException("carddetail: response is not JSON object");
+  }
+
   Future<BillModel> saveBillsFinance(BillModel bill) async {
     try {
       print(billModelToJson(bill));

@@ -12,6 +12,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:mispos/controllers/card_check_controller.dart';
 import 'package:mispos/controllers/orders_controller.dart';
 import 'package:mispos/controllers/pos_controller.dart';
 import 'package:mispos/models/bill_model.dart';
@@ -32,6 +33,7 @@ import 'package:sunmi_printer_plus/sunmi_style.dart';
 
 import '../../app.dart';
 import '../../services/pos_service.dart';
+import 'card_check_dialog.dart';
 
 class PosSalePage extends StatelessWidget {
   OrdersController cdc = Get.put(OrdersController());
@@ -49,6 +51,10 @@ class PosSalePage extends StatelessWidget {
   List<ProductModel> products = [];
 
   bool isScanCard = false;
+
+  // หน้าต่างเช็คบัตรเปิดอยู่ เลขบัตรที่แตะไปเช็คยอด ไม่ไปหาสินค้าและไม่ตัดเงิน
+  bool isCheckCard = false;
+  CardCheckController cardCheck = Get.put(CardCheckController());
 
   // === Debounce card scan: เก็บเลขบัตรที่เข้ามาทั้งหมดในช่วง 500ms ===
   // แล้วเลือกเอาตัวที่ยาวที่สุด (ครบที่สุด) เพื่อป้องกัน:
@@ -106,8 +112,8 @@ class PosSalePage extends StatelessWidget {
               print("<<<$barcode>>>");
               if (!visible || barcode == "") return;
 
-              if (isScanCard) {
-                // กำลังอยู่ในโหมดสแกนบัตร → ใช้ debounce
+              if (isScanCard || isCheckCard) {
+                // หน้าต่างชำระเงินหรือเช็คบัตรเปิดอยู่ → ใช้ debounce
                 _handleCardScan(barcode);
               } else {
                 print(barcode);
@@ -410,6 +416,32 @@ class PosSalePage extends StatelessWidget {
                   "ชำระเงิน",
                   style: GoogleFonts.maitree(color: Colors.white, fontSize: 30),
                 ), // <-- Text
+              ],
+            ),
+          ),
+        ),
+      ),
+      // ช่องที่ 3 ที่เคยว่าง ไม่ย้ายปุ่มเดิม แคชเชียร์จะได้ไม่กดผิด
+      SizedBox.fromSize(
+        child: Container(
+          margin: const EdgeInsets.only(right: 5),
+          decoration: const BoxDecoration(
+            color: Color(0xFF00796B),
+            borderRadius: BorderRadius.all(Radius.circular(10.0)),
+          ),
+          child: InkWell(
+            onTap: openCardCheckDialog,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                const Icon(
+                  FontAwesomeIcons.creditCard,
+                  color: Colors.white,
+                ),
+                Text(
+                  "เช็คบัตร",
+                  style: GoogleFonts.maitree(color: Colors.white, fontSize: 30),
+                ),
               ],
             ),
           ),
@@ -2026,6 +2058,25 @@ class PosSalePage extends StatelessWidget {
                 )))));
   }
 
+  /// เช็คยอดบัตร อ่านอย่างเดียว ไม่ตัดเงินและไม่สร้างบิล
+  /// เลขบัตรผ่าน debounce ชุดเดียวกับตอนชำระเงิน
+  openCardCheckDialog() {
+    _cardDebounceTimer?.cancel();
+    _cardScanBuffer.clear();
+    _isCardProcessing = false;
+    isCheckCard = true;
+    hidKeyboard();
+    _scanCardNFC(forCardCheck: true);
+    cardCheck.open();
+    Get.dialog(const CardCheckDialog(), barrierDismissible: false)
+        .whenComplete(() {
+      isCheckCard = false;
+      _cardDebounceTimer?.cancel();
+      _cardScanBuffer.clear();
+      cardCheck.close(cdc.order.value.toJson());
+    });
+  }
+
   paymentCardDialod(contact) {
     isScanCard = true;
     _resetCardScan(); // รีเซ็ตสถานะ card scan ก่อนเริ่มใหม่
@@ -2763,6 +2814,8 @@ class PosSalePage extends StatelessWidget {
   /// จัดการเลขบัตรที่ scan เข้ามา (ทั้ง keyboard-wedge และ NFC)
   /// เก็บไว้ใน buffer → รอ 500ms → เลือกตัวที่ยาวที่สุด (ครบที่สุด)
   void _handleCardScan(String cardNo) {
+    // NFC session ไม่ได้ปิดตามหน้าต่าง ถ้าไม่เช็คตรงนี้ แตะบัตรตอนไม่มีหน้าต่างเปิดจะไปตัดเงินบิลในตะกร้า
+    if (!isScanCard && !isCheckCard) return;
     if (_isCardProcessing) {
       print("_handleCardScan: skipped (already processing)");
       return;
@@ -2771,10 +2824,23 @@ class PosSalePage extends StatelessWidget {
     final trimmed = cardNo.trim();
     if (trimmed.isEmpty) return;
 
+    // เครื่องสแกนบาร์โค้ดกับเครื่องอ่านบัตรพิมพ์ตัวเลขเข้ามาแบบเดียวกัน
+    // บาร์โค้ดสินค้าที่ยิงตอนหน้าต่างบัตรเปิด ต้องไม่ถูกส่งไปหาบัตรหรือตัดเงิน
+    if (_isProductBarcode(trimmed)) {
+      if (isCheckCard) {
+        cardCheck.rejectProductBarcode();
+      } else {
+        cdc.rejectProductBarcode();
+      }
+      return;
+    }
+
     // เก็บเข้า buffer
     _cardScanBuffer.add(trimmed);
     print("Card buffer: $_cardScanBuffer");
-    cdc.showCardProcessing();
+    if (isScanCard) cdc.showCardProcessing();
+    // เช็คยอด: ล้างผลของคนก่อนออกจากทั้งสองจอทันที ไม่ต้องรอ debounce
+    if (isCheckCard) cardCheck.reading(trimmed);
 
     // รีเซ็ต timer ทุกครั้ง → รอจนไม่มีค่าใหม่เข้ามาอีก 500ms
     _cardDebounceTimer?.cancel();
@@ -2790,7 +2856,15 @@ class PosSalePage extends StatelessWidget {
       // เช็คความยาวขั้นต่ำ (เลขบัตรจริงต้อง >= 8 หลัก)
       if (bestCard.length < 8) {
         print("Card number too short ($bestCard), ignoring");
-        cdc.cancelCardProcessing();
+        if (isScanCard) cdc.cancelCardProcessing();
+        // เช็คยอด: ขึ้นไม่พบบัตร ไม่งั้นจอค้างที่ "กำลังตรวจสอบ"
+        if (isCheckCard) cardCheck.shortRead(bestCard);
+        return;
+      }
+
+      // เช็คยอดไม่ล็อก _isCardProcessing แตะใบใหม่ระหว่างรอได้ ผลของใบล่าสุดชนะ
+      if (isCheckCard) {
+        cardCheck.lookup(bestCard);
         return;
       }
 
@@ -2807,6 +2881,12 @@ class PosSalePage extends StatelessWidget {
     });
   }
 
+  bool _isProductBarcode(String code) {
+    final c = code.toUpperCase();
+    return posCtrl.productsTemp
+        .any((p) => (p.barcode ?? '').toString().toUpperCase() == c);
+  }
+
   /// รีเซ็ตสถานะ card scan เมื่อเปิด dialog ชำระใหม่
   void _resetCardScan() {
     _cardDebounceTimer?.cancel();
@@ -2818,14 +2898,17 @@ class PosSalePage extends StatelessWidget {
     cdc.isDuplicateScan.value = false;
   }
 
-  void _scanCardNFC() async {
+  void _scanCardNFC({bool forCardCheck = false}) async {
     print("start NFC");
     bool isAvailable = await NfcManager.instance.isAvailable();
     print("NFC available: $isAvailable");
 
     if (isAvailable) {
       try {
-        await displayManager.transferDataToPresentation("123");
+        // ข้อความนี้จะดึงจอลูกค้าออกจากหน้าเช็คบัตร ส่งเฉพาะตอนชำระเงินตามเดิม
+        if (!forCardCheck) {
+          await displayManager.transferDataToPresentation("123");
+        }
         await NfcManager.instance.reactive();
         await NfcManager.instance.startSession(
             onDiscovered: (NfcTag tag) async {
