@@ -36,6 +36,7 @@ class _SettingPageState extends State<SettingPage> {
     super.initState();
     settingCtrl.loadSetting();
     settingCtrl.refreshServerStatus();
+    settingCtrl.refreshCardCheckServer();
   }
 
   @override
@@ -77,7 +78,7 @@ class _SettingPageState extends State<SettingPage> {
                       caption: 'แตะเพื่อแก้ไข ระบบจะทดสอบการเชื่อมต่อก่อนบันทึกทุกครั้ง',
                     ),
                     const SizedBox(height: 20),
-                    _section('การขาย', [_saleOfflineRow()]),
+                    _section('การขาย', [_saleOfflineRow(), _cardCheckRow()]),
                     const SizedBox(height: 20),
                     _section(
                       'เสียง',
@@ -131,6 +132,38 @@ class _SettingPageState extends State<SettingPage> {
       trailing: _switch(value, settingCtrl.setSaleOffline),
       onTap: () => settingCtrl.setSaleOffline(!value),
     );
+  }
+
+  Widget _cardCheckRow() {
+    final value = settingCtrl.cardCheckEnabled.value;
+    return _row(
+      icon: Icons.credit_card_outlined,
+      title: 'ปุ่มเช็คบัตรในหน้าขาย',
+      subtitle: 'ดูยอดเงินคงเหลือในบัตร ไม่ตัดเงิน ไม่สร้างบิล',
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        _cardCheckServerChip(),
+        const SizedBox(width: 8),
+        _switch(value, settingCtrl.setCardCheckEnabled),
+      ]),
+      onTap: () => settingCtrl.setCardCheckEnabled(!value),
+    );
+  }
+
+  /// เปิดสวิตช์ไว้แต่ server ยังไม่แก้ carddetail แคชเชียร์กดแล้วจะเจอ error
+  /// ป้ายนี้ให้คนตั้งเครื่องเห็นก่อน
+  Widget _cardCheckServerChip() {
+    if (!settingCtrl.cardCheckEnabled.value) return const SizedBox.shrink();
+    if (settingCtrl.isCheckingCardServer.value) {
+      return _chip(
+          'กำลังตรวจสอบ server', _iconBackground, _textSecondary, null);
+    }
+    final ready = settingCtrl.cardCheckServerReady.value;
+    if (ready == null) return const SizedBox.shrink();
+    return ready
+        ? _chip('server พร้อม', _successBackground, _successText,
+            Icons.check_rounded)
+        : _chip('server ยังไม่รองรับ', _errorBackground, _errorText,
+            Icons.close_rounded);
   }
 
   Widget _soundRow() {

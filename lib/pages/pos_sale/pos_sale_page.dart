@@ -422,7 +422,9 @@ class PosSalePage extends StatelessWidget {
         ),
       ),
       // ช่องที่ 3 ที่เคยว่าง ไม่ย้ายปุ่มเดิม แคชเชียร์จะได้ไม่กดผิด
-      SizedBox.fromSize(
+      // ปิดได้ในหน้าตั้งค่าเครื่อง ช่องนี้จะว่างเหมือนเดิม
+      if (CardCheckController.enabled)
+        SizedBox.fromSize(
         child: Container(
           margin: const EdgeInsets.only(right: 5),
           decoration: const BoxDecoration(

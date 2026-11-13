@@ -57,6 +57,7 @@ class Constant {
   static const String posNo="posNo";
   static const String saleOffline = "saleOffline";
   static const String soundEnabled = "soundEnabled";
+  static const String cardCheckEnabled = "cardCheckEnabled";
 
   static final String POS_ID="2";
   static final String POS_CODE="POS_CODE";

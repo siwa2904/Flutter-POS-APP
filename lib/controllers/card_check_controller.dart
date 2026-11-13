@@ -1,10 +1,13 @@
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:presentation_displays/displays_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/pos_service.dart';
 import '../services/sound_service.dart';
+import '../utils/constants.dart';
 
 enum CardCheckStatus { waiting, loading, found, notFound, error }
 
@@ -66,6 +69,39 @@ class CardCheckView {
 
 /// เช็คยอดบัตรจากหน้าขาย อ่านอย่างเดียว ไม่ตัดเงินและไม่สร้างบิล
 class CardCheckController extends GetxController {
+  /// สวิตช์ปุ่มเช็คบัตรในหน้าตั้งค่าเครื่อง เครื่องที่ยังไม่เคยตั้งถือว่าเปิด
+  /// หน้าขายอ่านตอน build ทุกครั้ง สลับแล้วเข้าหน้าขายใหม่ก็เห็นผล
+  static bool get enabled =>
+      GetStorage().read<bool>(Constant.cardCheckEnabled) ?? true;
+
+  static set enabled(bool value) =>
+      GetStorage().write(Constant.cardCheckEnabled, value);
+
+  /// หน้าตั้งค่าใช้ดูว่า server เครื่องนี้รองรับเช็คบัตรหรือยัง ถามด้วยเลขบัตรที่ไม่มีจริง อ่านอย่างเดียว
+  /// true = พร้อม, false = server ตอบผิดปกติ (ยังไม่มี API หรือ query ยังเป็นแบบ cast เดิม)
+  /// null = บอกไม่ได้ เช่น ยังไม่ login หรือติดต่อ server ไม่ได้ (แถว IP Server บอกอยู่แล้ว)
+  static Future<bool?> checkServerSupport() async {
+    final prefs = await SharedPreferences.getInstance();
+    // interceptor ของ POSService ใช้ token ถ้ายังไม่ login จะ error ก่อนถึง server
+    if ((prefs.getString(Constant.token) ?? '').isEmpty) return null;
+    try {
+      await POSService()
+          .getCardDetail('0')
+          .timeout(const Duration(seconds: 8));
+      return true;
+    } on DioError catch (e) {
+      final status = e.response?.statusCode;
+      // 401 = token หมดอายุ ไม่ได้แปลว่า server ไม่รองรับ
+      if (status == null || status == 401) return null;
+      return false;
+    } on FormatException {
+      return false;
+    } catch (e) {
+      print("card check server probe failed: $e");
+      return null;
+    }
+  }
+
   final view = const CardCheckView(CardCheckStatus.waiting).obs;
 
   final DisplayManager _display = DisplayManager();

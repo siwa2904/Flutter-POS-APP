@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:mispos/controllers/card_check_controller.dart';
 import 'package:mispos/services/sound_service.dart';
 import 'package:mispos/utils/constants.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -16,6 +17,13 @@ class SettingController extends GetxController {
   Rx<String> posID = ''.obs;
   Rx<bool> saleOffline = false.obs;
   Rx<bool> soundEnabled = true.obs;
+  Rx<bool> cardCheckEnabled = true.obs;
+
+  /// server รองรับเช็คบัตรไหม null = ยังไม่รู้ ไม่แสดงป้าย
+  RxnBool cardCheckServerReady = RxnBool();
+  Rx<bool> isCheckingCardServer = false.obs;
+  int _cardServerSeq = 0;
+
   Rx<bool> isCheckingConnection = false.obs;
   Rx<String> connectionMessage = ''.obs;
 
@@ -42,6 +50,29 @@ class SettingController extends GetxController {
     posID.value = mc.read(Constant.posNo) ?? '';
     saleOffline.value = mc.read(Constant.saleOffline) ?? false;
     soundEnabled.value = SoundService.enabled;
+    cardCheckEnabled.value = CardCheckController.enabled;
+  }
+
+  /// บันทึกทันทีที่สลับ เหมือนสวิตช์เสียง เปิดแล้วเช็คให้เลยว่า server รองรับหรือยัง
+  void setCardCheckEnabled(bool value) {
+    cardCheckEnabled.value = value;
+    CardCheckController.enabled = value;
+    refreshCardCheckServer();
+  }
+
+  Future<void> refreshCardCheckServer() async {
+    // สลับสวิตช์รัว ๆ ใช้ผลของรอบล่าสุดเท่านั้น
+    final seq = ++_cardServerSeq;
+    cardCheckServerReady.value = null;
+    if (!cardCheckEnabled.value) {
+      isCheckingCardServer.value = false;
+      return;
+    }
+    isCheckingCardServer.value = true;
+    final ready = await CardCheckController.checkServerSupport();
+    if (seq != _cardServerSeq) return;
+    isCheckingCardServer.value = false;
+    cardCheckServerReady.value = ready;
   }
 
   Future<void> _loadAppVersion() async {
